@@ -11,6 +11,8 @@
 #include <QDir>
 #include <QFile>
 #include <QUuid>
+#include <QCoreApplication>
+#include <QDateTime>
 #include <QSignalMapper>
 #include <QEventLoop>
 
@@ -90,12 +92,11 @@ public:
     /** @param name The name of the bus to connect to or create */
     PlayBus( const QString& name, QObject* parent = 0 )
     :QObject( parent ),
-     m_busName( name )
+     m_busName( name ),
+     m_queryMessages( false )
     {
         connect( &m_server, SIGNAL( newConnection()),
                             SLOT( onIncomingConnection()));
-
-        connect( this, SIGNAL( queryRequest( QString, QString )), SLOT( onQuery( QString, QString )));
     }
 
     ~PlayBus()
@@ -113,41 +114,41 @@ public:
         return m_lastMessage;
     }
 
+    void setQueryMessages( bool b )
+    {
+        m_queryMessages = b;
+    }
 
 public slots:
  
-    QString sendQuery( QString request, int timeout = 100 )
+    QByteArray sendQuery( QByteArray request, int timeout = 200 )
     {
-        QString uuid = QUuid::createUuid();
+        QUuid quuid = QUuid::createUuid();
+        QString uuid = quuid;
         m_dispatchedQueries << uuid;
         static int test = 0;
-        sendMessage( uuid + " " + request + " " + QString::number((test++)) );
+        sendMessage( (uuid + " " + request).toUtf8() );
 
-        SignalBlocker blocker( this, SIGNAL( queryRequest(QString,QString)), timeout );
+        SignalBlocker blocker( this, SIGNAL( queryRequest(QString,QByteArray)), timeout );
         
         while( blocker.start()) {
            if( m_lastQueryUuid == uuid ) {
                 return m_lastQueryResponse;
             }
         }
-        return QString();
+        return QByteArray();
     }
 
-    void sendQueryResponse( QString uuid, QString message )
+    void sendQueryResponse( QString uuid, QByteArray message )
     {
-        sendMessage( uuid + " " + message );
+        sendMessage( ( uuid + " " ).toUtf8() + message );
     }
 
    /** send the message around the bus */
-    void sendMessage( const QString& msg )
+    void sendMessage( const QByteArray& msg )
     {
-        if( m_server.isListening() && msg == "ROSTER" ) {
-            processCommand( 0, "ROSTER" );
-            return;
-        }       
-
         foreach( QLocalSocket* socket, m_sockets ) {
-            socket->write( (msg + "\n" ).toUtf8().data()  );
+            socket->write( msg + "\n" );
             socket->flush();
         }
 
@@ -155,21 +156,17 @@ public slots:
 
 signals:
     /** a new message has been received from the bus */
-    void message( const QString& msg );
-
-    void queryRequest( const QString& uuid, const QString& message);
-
-    void nodes( const QStringList& );
+    void message( const QByteArray& msg );
+    void queryRequest( const QString& uuid, const QByteArray& message);
 
 private slots:
 
-    void onQuery( QString uuid, QString query )
-    {
-        sendQueryResponse( uuid, "Blah response: " + query );
-    }
-
     void onSocketConnected()
     {
+        //throw-away uuid generation to initialize random seed
+        QUuid::createUuid();
+        qsrand( (uint)QDateTime::currentDateTime().toTime_t() + QCoreApplication::applicationPid());
+
         QLocalSocket* socket = qobject_cast<QLocalSocket*>(sender());
         addSocket( socket );
     }
@@ -215,21 +212,26 @@ private slots:
     void processCommand( QLocalSocket* socket, const QByteArray& data )
     {
         m_lastMessage = data;
-        QRegExp queryRE("^(\\{.{8}-.{4}-.{4}-.{4}-.{12}\\}) (.*)$");
+        QRegExp queryRE("^(\\{.{8}-.{4}-.{4}-.{4}-.{12}\\}) .*$");
         if( queryRE.indexIn( data ) > -1) {
             QString uuid = queryRE.cap(1);
             
             // ignore any queries that have already been seen
             if( !m_dispatchedQueries.contains( uuid ) && 
-                 m_servicedQueries.contains( uuid )) return;
+                 m_servicedQueries.contains( uuid )) {
+                 if( m_queryMessages )
+                    emit message( data );
+                 return;
+            }
 
             m_lastQueryUuid = uuid;
-            m_lastQueryResponse = queryRE.cap(2);
+            m_lastQueryResponse = data.mid( 39 ); //remove uuid and seperator
             m_servicedQueries << m_lastQueryUuid;
             emit queryRequest( m_lastQueryUuid, m_lastQueryResponse);
-            return;
+            if( !m_queryMessages )
+                return;
         }
-        emit message( QString( data ) );
+        emit message( data );
     }
 
     void onSocketData()
@@ -283,8 +285,9 @@ private:
     QByteArray m_lastMessage;
     QList<QString> m_dispatchedQueries;
     QList<QString> m_servicedQueries;
-    QString m_lastQueryResponse;
+    QByteArray m_lastQueryResponse;
     QString m_lastQueryUuid;
+    bool m_queryMessages;
 };
 
 
