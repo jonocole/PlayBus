@@ -1,0 +1,17 @@
+PlayBus
+=======
+
+An interprocess message bus.
+
+If no bus is running then a client will become the master node.
+  
+If the master node drops it's connection then another client node
+will become the master and all other clients will connect to this.
+ 
+This bus is designed to be run on a single host using local servers.
+the server mediation is handled at the kernel level by exploiting the 
+logic that allows only one process to listen on a named pipe.
+
+This code will not work across distributed hosts as no master no
+mediation is carried out. This could be extended by using a known 
+distributed mediation protocol.
