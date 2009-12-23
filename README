@@ -5,7 +5,7 @@ An interprocess message bus.
 
 If no bus is running then a client will become the master node.
   
-If the master node drops it's connection then another client node
+If the master node drops its connection then another client node
 will become the master and all other clients will connect to this.
  
 This bus is designed to be run on a single host using local servers.
