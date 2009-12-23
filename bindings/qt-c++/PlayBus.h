@@ -81,7 +81,7 @@ private:
   * the server mediation is handled at the kernel level by exploiting the 
   * logic that allows only one process to listen on a named pipe.
   *
-  * This code will not work across distributed hosts as no master no
+  * This code will not work across distributed hosts as no master node
   * mediation is carried out. This could be extended by using a known
   * mediation algorithm.
   */
@@ -126,7 +126,6 @@ public slots:
         QUuid quuid = QUuid::createUuid();
         QString uuid = quuid;
         m_dispatchedQueries << uuid;
-        static int test = 0;
         sendMessage( (uuid + " " + request).toUtf8() );
 
         SignalBlocker blocker( this, SIGNAL( queryRequest(QString,QByteArray)), timeout );
@@ -163,9 +162,12 @@ private slots:
 
     void onSocketConnected()
     {
-        //throw-away uuid generation to initialize random seed
-        QUuid::createUuid();
-        qsrand( (uint)QDateTime::currentDateTime().toTime_t() + QCoreApplication::applicationPid());
+        //WIN32 supports GUIDs which almost certainly will be unique according to Qt.
+        #ifndef WIN32
+            //throw-away uuid generation to initialize random seed
+            QUuid::createUuid();
+            qsrand( (uint)QDateTime::currentDateTime().toTime_t() + QCoreApplication::applicationPid());
+        #endif
 
         QLocalSocket* socket = qobject_cast<QLocalSocket*>(sender());
         addSocket( socket );
@@ -209,7 +211,7 @@ private slots:
         }
     }
 
-    void processCommand( QLocalSocket* socket, const QByteArray& data )
+    void processCommand( const QByteArray& data )
     {
         m_lastMessage = data;
         QRegExp queryRE("^(\\{.{8}-.{4}-.{4}-.{4}-.{12}\\}) .*$");
@@ -248,14 +250,16 @@ private slots:
                 aSocket->flush();
             }
             
-            processCommand( socket, data );
+            processCommand( data );
 
         }
     }
     
     void onSocketDestroyed( QObject* o )
     {
-        QLocalSocket* s = static_cast<QLocalSocket*>(o);
+        QLocalSocket* s = dynamic_cast<QLocalSocket*>(o);
+        if( !s ) return;
+        s->blockSignals(true);
         m_sockets.removeAll( s );
     }
 
@@ -263,11 +267,11 @@ private:
     void addSocket( QLocalSocket* socket )
     {
         connect( socket, SIGNAL(readyRead()), SLOT(onSocketData()));
-        connect( socket, SIGNAL(destroyed(QObject*)), SLOT(onSocketDestroyed(QObject*)));
         QSignalMapper* mapper = new QSignalMapper(socket);
         mapper->setMapping( socket, socket );
         connect( mapper, SIGNAL(mapped(QObject*)), SLOT(onSocketDestroyed(QObject*)));
         connect( socket, SIGNAL(disconnected()), mapper, SLOT( map()));
+        connect( socket, SIGNAL(destroyed(QObject*)), SLOT(onSocketDestroyed(QObject*)));
         m_sockets << socket;
     }
 

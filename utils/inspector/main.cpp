@@ -1,8 +1,8 @@
 #include <QApplication>
 #include <iostream>
 #include <QVBoxLayout>
-#include "PlayBus.h"
-#include "LineEdit.h"
+#include "../../bindings/qt-c++/PlayBus.h"
+#include "Widgets.h"
 #include <QTextEdit>
 #include <QPushButton>
 #include <QSignalMapper>
@@ -14,6 +14,7 @@ int main( int argc, char* argv[] )
     std::cout << "Connecting to playbus" << std::endl;    
 
     PlayBus m_pb( "PlaybusTest" );
+    m_pb.setQueryMessages( true );
     m_pb.board();
 
     std::string s;
@@ -21,7 +22,7 @@ int main( int argc, char* argv[] )
     QWidget w;
     QVBoxLayout l( &w );
     LineEdit input;
-    QTextEdit textedit;
+    TextEdit textedit;
     QPushButton clearButton( "Clear" );
     textedit.setReadOnly( true );
     w.layout()->addWidget( &input);
@@ -30,8 +31,8 @@ int main( int argc, char* argv[] )
     w.setWindowTitle( argv[1] );
     w.show();
     QObject::connect( &clearButton, SIGNAL( clicked()), &textedit, SLOT( clear()));
-    QObject::connect( &m_pb, SIGNAL( message( QString )), &textedit, SLOT( append( QString)));
-    QObject::connect( &input, SIGNAL( returnPressed(QString)), &m_pb, SLOT( sendMessage( QString )));
+    QObject::connect( &m_pb, SIGNAL( message( QByteArray )), &textedit, SLOT( append( QByteArray)));
+    QObject::connect( &input, SIGNAL( returnPressed( QByteArray )), &m_pb, SLOT( sendQuery( QByteArray )));
     QObject::connect( &input, SIGNAL( returnPressed()), &input, SLOT( clear()));
 
     app.exec();

@@ -10,5 +10,5 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 # Input
-HEADERS += LineEdit.h PlayBus.h
+HEADERS += Widgets.h ../../bindings/qt-c++/PlayBus.h
 SOURCES += main.cpp
