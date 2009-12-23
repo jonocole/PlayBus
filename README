@@ -12,6 +12,6 @@ This bus is designed to be run on a single host using local servers.
 the server mediation is handled at the kernel level by exploiting the 
 logic that allows only one process to listen on a named pipe.
 
-This code will not work across distributed hosts as no master no
+This code will not work across distributed hosts as no master node
 mediation is carried out. This could be extended by using a known 
 distributed mediation protocol.
