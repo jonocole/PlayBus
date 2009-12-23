@@ -15,3 +15,21 @@ logic that allows only one process to listen on a named pipe.
 This code will not work across distributed hosts as no master node
 mediation is carried out. This could be extended by using a known 
 distributed mediation protocol.
+
+Usage
+=====
+There is currently little documentation in the source code but you can
+get an idea of how to use it by looking at the inspector util - this is
+a small app that watches the "PlaybusTest" bus and allows you to sendQueries.
+
+Building the Inspector
+======================
+cd utils/inspector
+qmake
+make
+
+Known Issues
+============
+The protocol deals with raw byte arrays but each message is new line separated
+therefore it is not possible to send any data with \n in it. This needs an update
+in the protocol to send length byte(s) before the message.

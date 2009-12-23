@@ -1,5 +1,4 @@
 #include <QApplication>
-#include <iostream>
 #include <QVBoxLayout>
 #include "../../bindings/qt-c++/PlayBus.h"
 #include "Widgets.h"
@@ -11,13 +10,9 @@ int main( int argc, char* argv[] )
 {
     QApplication app( argc, argv );
 
-    std::cout << "Connecting to playbus" << std::endl;    
-
     PlayBus m_pb( "PlaybusTest" );
     m_pb.setQueryMessages( true );
     m_pb.board();
-
-    std::string s;
 
     QWidget w;
     QVBoxLayout l( &w );
