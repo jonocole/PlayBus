@@ -15,7 +15,9 @@
 #include <QDateTime>
 #include <QSignalMapper>
 #include <QEventLoop>
-
+#ifdef Q_OS_WIN
+	#include <QSharedMemory>
+#endif
 
 /**
   * @brief Waits for a Qt signal to be emitted before
@@ -94,6 +96,9 @@ public:
     :QObject( parent ),
      m_busName( name ),
      m_queryMessages( false )
+#ifdef Q_OS_WIN
+	 ,m_sharedMemory( name )
+#endif
     {
         connect( &m_server, SIGNAL( newConnection()),
                             SLOT( onIncomingConnection()));
@@ -102,6 +107,9 @@ public:
     ~PlayBus()
     {
         m_server.close();
+#ifdef Q_OS_WIN
+		m_sharedMemory.detach();
+#endif
     }
 
     void board()
@@ -175,16 +183,30 @@ private slots:
 
     void reinit()
     {
-        foreach( QLocalSocket* socket, m_sockets ) {
+		if( m_server.isListening())
+			return;
+
+		foreach( QLocalSocket* socket, m_sockets ) {
             m_sockets.removeAll(socket);
             socket->disconnect();
             socket->close();
             socket->deleteLater();
         }
 
+#ifndef Q_OS_WIN
         if( m_server.listen( m_busName )) {
             return;
         }
+#else
+		if( m_sharedMemory.create( 1 )) {
+			emit message( "Now Listening" );
+			m_server.listen( m_busName );
+			return;
+		} else
+		{
+			emit message( "Connecting to server" );
+		}
+#endif
 
         m_server.close();
         QLocalSocket* socket = new QLocalSocket( this );
@@ -196,10 +218,15 @@ private slots:
 
     void onError( const QLocalSocket::LocalSocketError& e )
     {
-        if( e == QLocalSocket::ConnectionRefusedError )
-            QFile::remove( QDir::tempPath() + "/" + m_busName );
-
-        reinit();
+#ifndef Q_OS_WIN
+		if( e == QLocalSocket::ConnectionRefusedError ) {
+			QFile::remove( m_server.fullServerName() );
+		}
+#endif
+		QLocalSocket* s = qobject_cast<QLocalSocket*>(sender());
+		s->close();
+		s->deleteLater();
+		QTimer::singleShot( 10, this, SLOT(reinit()));
     }
 
     void onIncomingConnection()
@@ -207,6 +234,7 @@ private slots:
         QLocalSocket* socket = 0;
         while( (socket = m_server.nextPendingConnection()) )
         {
+			socket->setParent( this );
             addSocket( socket );
         }
     }
@@ -292,6 +320,9 @@ private:
     QByteArray m_lastQueryResponse;
     QString m_lastQueryUuid;
     bool m_queryMessages;
+#ifdef Q_OS_WIN
+	QSharedMemory m_sharedMemory;
+#endif
 };
 
 

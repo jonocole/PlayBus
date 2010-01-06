@@ -12,7 +12,6 @@ int main( int argc, char* argv[] )
 
     PlayBus m_pb( "PlaybusTest" );
     m_pb.setQueryMessages( true );
-    m_pb.board();
 
     QWidget w;
     QVBoxLayout l( &w );
@@ -29,6 +28,8 @@ int main( int argc, char* argv[] )
     QObject::connect( &m_pb, SIGNAL( message( QByteArray )), &textedit, SLOT( append( QByteArray)));
     QObject::connect( &input, SIGNAL( returnPressed( QByteArray )), &m_pb, SLOT( sendQuery( QByteArray )));
     QObject::connect( &input, SIGNAL( returnPressed()), &input, SLOT( clear()));
+
+	m_pb.board();
 
     app.exec();
 }
