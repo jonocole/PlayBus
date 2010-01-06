@@ -33,3 +33,8 @@ Known Issues
 The protocol deals with raw byte arrays but each message is new line separated
 therefore it is not possible to send any data with \n in it. This needs an update
 in the protocol to send length byte(s) before the message.
+
+Windows seemingly allows > 1 process to listen on a named pipe. As a result the
+bus currently wont work on windows. My current idea for a workaround is to use
+shared memory (which can only be created by 1 process) and then the creator starts
+listening.
