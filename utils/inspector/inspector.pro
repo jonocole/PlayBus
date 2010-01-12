@@ -10,5 +10,8 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 # Input
-HEADERS += Widgets.h ../../bindings/qt-c++/PlayBus.h
+HEADERS += Widgets.h \
+           ../../bindings/qt-c++/PlayBus.h \
+           ../../bindings/qt-c++/SignalBlocker.h
+
 SOURCES += main.cpp
